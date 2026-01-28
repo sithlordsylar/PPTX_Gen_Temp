@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template PPTX Merger</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f7f6;
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background-color: #ffffff;
+            padding: 20px 40px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: #FF5733;
+            font-size: 1.5rem;
+        }
+
+        .container {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* Left Column: Data Input */
+        .left-panel {
+            flex: 1;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Right Column: Settings */
+        .right-panel {
+            flex: 1;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #555;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+            font-size: 0.9rem;
+        }
+
+        input[type="text"], input[type="number"], input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus {
+            border-color: #007bff;
+            outline: none;
+        }
+
+        textarea {
+            width: 100%;
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            resize: none;
+            font-family: 'Consolas', monospace;
+            box-sizing: border-box;
+            min-height: 300px;
+        }
+
+        .file-upload-wrapper {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 6px;
+            border: 2px dashed #ddd;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .status-bar {
+            margin-top: auto;
+            background-color: #e8f4fd;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid #bee5eb;
+            margin-bottom: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .hint {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: -15px;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Template Populator</h1>
+    </div>
+
+    <form action="/generate" method="post" enctype="multipart/form-data" class="container">
+        
+        <div class="left-panel">
+            <h2>1. Input Data</h2>
+            <label for="running_numbers">Running Numbers List</label>
+            <textarea id="running_numbers" name="running_numbers" 
+                placeholder="Paste your list here...&#10;A001&#10;A002&#10;A003" required></textarea>
+        </div>
+
+        <div class="right-panel">
+            <h2>2. Upload Template</h2>
+            
+            <label>Select PPTX Template</label>
+            <div class="file-upload-wrapper">
+                <input type="file" name="template_file" accept=".pptx" required>
+            </div>
+
+            <label for="placeholder_text">Placeholder Text in Template</label>
+            <input type="text" id="placeholder_text" name="placeholder_text" value="{{NUM}}" required>
+            <span class="hint">The text inside your PPTX that will be replaced.</span>
+
+            <label for="items_per_slide">Placeholders Per Slide</label>
+            <input type="number" id="items_per_slide" name="items_per_slide" value="1" min="1" required>
+            <span class="hint">How many items from the list go on one single slide?</span>
+
+            <div class="status-bar" id="status_bar">
+                Waiting for input...
+            </div>
+
+            <button type="submit">GENERATE PPTX</button>
+        </div>
+
+    </form>
+
+    <script>
+        const textArea = document.getElementById('running_numbers');
+        const itemsInput = document.getElementById('items_per_slide');
+        const statusBar = document.getElementById('status_bar');
+
+        function updateCount() {
+            const text = textArea.value;
+            // Split by newline and filter out empty lines
+            const lines = text.split(/\r\n|\r|\n/).filter(line => line.trim() !== "").length;
+            const itemsPerSlide = parseInt(itemsInput.value) || 1;
+
+            if (lines === 0) {
+                statusBar.textContent = "Waiting for input...";
+                statusBar.style.backgroundColor = "#e8f4fd";
+                statusBar.style.color = "#0c5460";
+                return;
+            }
+
+            // Calculate total slides needed
+            const totalSlides = Math.ceil(lines / itemsPerSlide);
+
+            statusBar.innerHTML = `
+                ${lines} Items detected.<br>
+                ${itemsPerSlide} Item(s) per slide.<br>
+                <strong>Total Output: ${totalSlides} Slides.</strong>
+            `;
+            statusBar.style.backgroundColor = "#d4edda";
+            statusBar.style.color = "#155724";
+            statusBar.style.borderColor = "#c3e6cb";
+        }
+
+        // Add event listeners to trigger calculation on typing
+        textArea.addEventListener('input', updateCount);
+        itemsInput.addEventListener('input', updateCount);
+    </script>
+</body>
+</html>
